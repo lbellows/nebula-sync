@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/robfig/cron/v3"
 	"github.com/stretchr/testify/require"
 
 	"github.com/lovelaze/nebula-sync/internal/config"
@@ -108,6 +109,32 @@ func TestRun_webhook_failure(t *testing.T) {
 	target.AssertCalled(t, "SelectiveSync", conf.Sync)
 	callback.AssertCalled(t, "OnFailure", syncErr)
 	callback.AssertNotCalled(t, "OnSuccess")
+}
+
+func TestRun_cron_continues_after_initial_failure(t *testing.T) {
+	cronExpr := "@hourly"
+	syncErr := errors.New("replica unreachable")
+	conf := config.Config{
+		Primary:  model.PiHole{},
+		Replicas: []model.PiHole{},
+		Sync: &config.Sync{
+			FullSync: true,
+			Cron:     &cronExpr,
+		},
+	}
+
+	target := syncmock.NewTarget(t)
+	callback := syncmock.NewCallback(t)
+	target.On("FullSync", conf.Sync).Return(syncErr)
+	callback.On("OnFailure", syncErr).Return(nil)
+
+	service := NewService(target, conf, callback)
+	service.runCron = func(*cron.Cron) {}
+
+	err := service.Run()
+	require.NoError(t, err)
+	target.AssertCalled(t, "FullSync", conf.Sync)
+	callback.AssertCalled(t, "OnFailure", syncErr)
 }
 
 func TestRun_webhook_error_does_not_affect_result(t *testing.T) {

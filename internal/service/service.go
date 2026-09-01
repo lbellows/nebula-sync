@@ -20,6 +20,8 @@ type Service struct {
 	conf      config.Config
 	callbacks []sync.Callback
 	State     *sync.State
+	// runCron starts the scheduler. Tests replace it so Run() does not block.
+	runCron func(*cron.Cron)
 }
 
 func NewService(target sync.Target, conf config.Config, callbacks ...sync.Callback) *Service {
@@ -31,6 +33,7 @@ func NewService(target sync.Target, conf config.Config, callbacks ...sync.Callba
 		conf:      conf,
 		callbacks: cbs,
 		State:     state,
+		runCron:   func(c *cron.Cron) { c.Run() },
 	}
 }
 
@@ -67,7 +70,10 @@ func (service *Service) Run() error {
 	log.Debug().Str("config", service.conf.String()).Msgf("Settings")
 
 	if err := service.sync(service.target); err != nil {
-		return err
+		if service.conf.Sync.Cron == nil {
+			return err
+		}
+		log.Error().Err(err).Msg("Initial sync failed, continuing on cron schedule")
 	}
 
 	if service.conf.Sync.Cron != nil {
@@ -115,6 +121,6 @@ func (service *Service) startCron(cmd func()) error {
 		return fmt.Errorf("cron job: %w", err)
 	}
 
-	cron.Run()
+	service.runCron(cron)
 	return nil
 }
