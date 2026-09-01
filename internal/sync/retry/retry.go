@@ -13,7 +13,9 @@ import (
 
 const (
 	AttemptsPostTeleporter = 5
+	AttemptsGetTeleporter  = 5
 	AttemptsPatchConfig    = 5
+	AttemptsGetConfig      = 5
 	AttemptsPostRunGravity = 5
 	AttemptsPostAuth       = 3
 	// FTL is often still restarting after gravity, so session teardown needs a

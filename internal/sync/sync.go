@@ -52,7 +52,9 @@ func (target *target) sync(syncFunc func() error, mode string) error {
 
 func (target *target) authenticate() error {
 	log.Info().Msg("Authenticating clients...")
-	if err := target.Primary.PostAuth(); err != nil {
+	if err := retry.Fixed(func() error {
+		return target.Primary.PostAuth()
+	}, retry.AttemptsPostAuth); err != nil {
 		return err
 	}
 
@@ -86,8 +88,12 @@ func (target *target) deleteSessions() {
 
 func (target *target) syncTeleporters(gravitySettings *config.GravitySettings) error {
 	log.Info().Msg("Syncing teleporters...")
-	conf, err := target.Primary.GetTeleporter()
-	if err != nil {
+	var conf []byte
+	if err := retry.Fixed(func() error {
+		var err error
+		conf, err = target.Primary.GetTeleporter()
+		return err
+	}, retry.AttemptsGetTeleporter); err != nil {
 		return err
 	}
 
@@ -104,13 +110,17 @@ func (target *target) syncTeleporters(gravitySettings *config.GravitySettings) e
 		}
 	}
 
-	return err
+	return nil
 }
 
 func (target *target) syncConfigs(configSettings *config.ConfigSettings) error {
 	log.Info().Msg("Syncing configs...")
-	configResponse, err := target.Primary.GetConfig()
-	if err != nil {
+	var configResponse *model.ConfigResponse
+	if err := retry.Fixed(func() error {
+		var err error
+		configResponse, err = target.Primary.GetConfig()
+		return err
+	}, retry.AttemptsGetConfig); err != nil {
 		return err
 	}
 
@@ -124,13 +134,15 @@ func (target *target) syncConfigs(configSettings *config.ConfigSettings) error {
 		}
 	}
 
-	return err
+	return nil
 }
 
 func (target *target) runGravity() error {
 	log.Info().Msg("Running gravity...")
 
-	if err := target.Primary.PostRunGravity(); err != nil {
+	if err := retry.Fixed(func() error {
+		return target.Primary.PostRunGravity()
+	}, retry.AttemptsPostRunGravity); err != nil {
 		return err
 	}
 
