@@ -93,28 +93,18 @@ func splitReplicaList(value string) []string {
 
 	parts := strings.Split(value, ",")
 	replicas := make([]string, 0, len(parts))
-	var current strings.Builder
 
 	for _, part := range parts {
-		if current.Len() == 0 {
-			current.WriteString(part)
-			continue
-		}
-
 		trimmed := strings.TrimSpace(part)
-		if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
-			replicas = append(replicas, current.String())
-			current.Reset()
-			current.WriteString(part)
+		startsEntry := strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://")
+
+		if len(replicas) == 0 || startsEntry {
+			replicas = append(replicas, part)
 			continue
 		}
 
-		current.WriteByte(',')
-		current.WriteString(part)
-	}
-
-	if current.Len() > 0 {
-		replicas = append(replicas, current.String())
+		// Not the start of a new entry, so this comma belonged to the password.
+		replicas[len(replicas)-1] += "," + part
 	}
 
 	return replicas
