@@ -1,11 +1,25 @@
 # nebula-sync
 
-[![Release version](https://img.shields.io/github/v/release/lovelaze/nebula-sync)](https://github.com/lovelaze/nebula-sync/releases/latest)
-[![Tests](https://img.shields.io/github/actions/workflow/status/lovelaze/nebula-sync/go.yml?branch=main&label=tests)](https://github.com/lovelaze/nebula-sync/actions/workflows/go.yml?query=branch%3Amain)
-![Go version](https://img.shields.io/github/go-mod/go-version/lovelaze/nebula-sync)
-[![Docker image size](https://img.shields.io/docker/image-size/lovelaze/nebula-sync/latest)](https://hub.docker.com/r/lovelaze/nebula-sync)
+[![Release version](https://img.shields.io/github/v/release/lbellows/nebula-sync)](https://github.com/lbellows/nebula-sync/releases/latest)
+[![Tests](https://img.shields.io/github/actions/workflow/status/lbellows/nebula-sync/go.yml?branch=main&label=tests)](https://github.com/lbellows/nebula-sync/actions/workflows/go.yml?query=branch%3Amain)
+![Go version](https://img.shields.io/github/go-mod/go-version/lbellows/nebula-sync)
+[![GHCR](https://img.shields.io/badge/ghcr-lbellows%2Fnebula--sync-blue)](https://github.com/lbellows/nebula-sync/pkgs/container/nebula-sync)
 
 Synchronize Pi-hole v6.x configuration to replicas.
+
+This is a hard fork of [lovelaze/nebula-sync](https://github.com/lovelaze/nebula-sync). It does not track upstream automatically; changes are pulled in deliberately.
+
+### Image tags
+
+Images are published to `ghcr.io/lbellows/nebula-sync`:
+
+| Tag | Moves? | Built from |
+|---|---|---|
+| `edge` | yes, on every merge | `main` |
+| `sha-<short sha>` | no | that commit on `main` |
+| `vX.Y.Z`, `vX.Y`, `latest` | on release | a pushed `v*.*.*` tag |
+
+`edge` changes under you whenever `main` moves. Pin `sha-<short sha>` (or a version tag) for anything you care about staying put.
 
 This project is not a part of the [official Pi-hole project](https://github.com/pi-hole), but uses the api provided by Pi-hole instances to perform the synchronization actions.
 
@@ -18,9 +32,11 @@ This project is not a part of the [official Pi-hole project](https://github.com/
 
 
 ### Linux/OSX binary
-Download binary from the [latest release](https://github.com/lovelaze/nebula-sync/releases/latest) or build from source:
+Download binary from the [latest release](https://github.com/lbellows/nebula-sync/releases/latest) or build from source:
 ```
-go install github.com/lovelaze/nebula-sync@latest
+git clone https://github.com/lbellows/nebula-sync.git
+cd nebula-sync
+go build -o nebula-sync .
 ```
 
 Run binary:
@@ -38,8 +54,9 @@ nebula-sync run --env-file .env
 ---
 services:
   nebula-sync:
-    image: ghcr.io/lovelaze/nebula-sync:latest
+    image: ghcr.io/lbellows/nebula-sync:edge
     container_name: nebula-sync
+    restart: unless-stopped
     environment:
     - PRIMARY=http://ph1.example.com|password
     - REPLICAS=http://ph2.example.com|password,http://ph3.example.com|password
@@ -57,11 +74,11 @@ docker run --rm \
   -e REPLICAS="http://ph2.example.com|password" \
   -e FULL_SYNC=true \
   -e RUN_GRAVITY=true \
-  ghcr.io/lovelaze/nebula-sync:latest
+  ghcr.io/lbellows/nebula-sync:edge
 ```
 
 ## Examples
-Env and docker-compose examples can be found [here](https://github.com/lovelaze/nebula-sync/tree/main/examples)
+Env and docker-compose examples can be found [here](https://github.com/lbellows/nebula-sync/tree/main/examples)
 
 ## Configuration
 
@@ -79,6 +96,8 @@ The following environment variables can be specified:
 
 > **Docker secrets:** `PRIMARY` and `REPLICAS` environment variables support Docker secrets when defined as `PRIMARY_FILE` and `REPLICAS_FILE`. See note regarding default user and Docker secrets example below.
 
+> **Note:** Every entry in `PRIMARY`/`REPLICAS` must include a scheme (`http://` or `https://`). The comma that separates replicas is only treated as a separator when the text after it starts with a scheme, which is what allows a password to contain a comma. A password containing the literal `,http://` will still split in the wrong place; use `REPLICAS_FILE` if you need arbitrary passwords.
+
 ### Optional Environment Variables
 
 | Name                               | Default | Example         | Description                                        |
@@ -89,6 +108,8 @@ The following environment variables can be specified:
 | `CLIENT_SKIP_TLS_VERIFICATION`     | false   | true            | Skips TLS certificate verification                 |
 | `CLIENT_RETRY_DELAY_SECONDS`       | 1       | 5               | Seconds to delay between connection attempts       |
 | `CLIENT_TIMEOUT_SECONDS`           | 20      | 60              | Http client timeout in seconds                     |
+
+> **Note:** `CLIENT_TIMEOUT_SECONDS` is a whole-request timeout, and `POST /api/action/gravity` does not return until gravity has finished. If you set `RUN_GRAVITY=true`, raise this above however long gravity actually takes on your largest list, or the call times out and gets retried, re-running gravity each time.
 
 > **Note:** The following optional settings apply only if `FULL_SYNC=false`. They allow for granular control of synchronization if a full sync is not wanted.
 
@@ -190,7 +211,7 @@ When using Pi-hole's app passwords ("Configure app password" in the Web interfac
 
 ## Disclaimer
 
-This project is an unofficial, community-maintained project and is not affiliated with the [official Pi-hole project](https://github.com/pi-hole). It aims to add sync/replication features not available in the core Pi-hole product but operates independently of Pi-hole LLC. Although tested across various environments, using any software from the Internet involves inherent risks. See the [license](https://github.com/lovelaze/nebula-sync/blob/main/LICENSE) for more details.
+This project is an unofficial, community-maintained project and is not affiliated with the [official Pi-hole project](https://github.com/pi-hole). It aims to add sync/replication features not available in the core Pi-hole product but operates independently of Pi-hole LLC. Although tested across various environments, using any software from the Internet involves inherent risks. See the [license](LICENSE) for more details.
 
 Pi-hole and the Pi-hole logo are [registered trademarks](https://pi-hole.net/trademark-rules-and-brand-guidelines) of Pi-hole LLC.
 

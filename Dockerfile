@@ -30,7 +30,9 @@ USER 1001
 
 ENV API_ENABLED=true
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=3s --retries=3 \
+# start-period covers the first sync: /health reports unhealthy until one
+# completes, and a first run that includes gravity takes well over a minute.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=180s --retries=3 \
   CMD ["nebula-sync", "healthcheck"]
 
 ENTRYPOINT ["nebula-sync"]
