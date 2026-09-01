@@ -20,9 +20,10 @@ func TestClient_DeleteSession_neverAuthenticated(t *testing.T) {
 	require.NoError(t, err)
 
 	c := &client{
-		piHole:     model.PiHole{URL: u, Password: "test"},
-		logger:     &logger,
-		httpClient: &http.Client{},
+		piHole:         model.PiHole{URL: u, Password: "test"},
+		logger:         &logger,
+		httpClient:     &http.Client{},
+		longHTTPClient: &http.Client{},
 	}
 
 	require.NoError(t, c.DeleteSession())

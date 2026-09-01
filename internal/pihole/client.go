@@ -31,20 +31,25 @@ type Client interface {
 	APIPath(target string) string
 }
 
-func NewClient(piHole model.PiHole, httpClient *http.Client) Client {
+// NewClient takes two http clients: httpClient for ordinary API calls and
+// longHTTPClient, with a larger timeout, for the calls that block until Pi-hole
+// has finished working (gravity and teleporter).
+func NewClient(piHole model.PiHole, httpClient, longHTTPClient *http.Client) Client {
 	logger := log.With().Str("client", piHole.URL.String()).Logger()
 	return &client{
-		piHole:     piHole,
-		logger:     &logger,
-		httpClient: httpClient,
+		piHole:         piHole,
+		logger:         &logger,
+		httpClient:     httpClient,
+		longHTTPClient: longHTTPClient,
 	}
 }
 
 type client struct {
-	piHole     model.PiHole
-	auth       auth
-	logger     *zerolog.Logger
-	httpClient *http.Client
+	piHole         model.PiHole
+	auth           auth
+	logger         *zerolog.Logger
+	httpClient     *http.Client
+	longHTTPClient *http.Client
 }
 
 type auth struct {
@@ -154,7 +159,7 @@ func (client *client) GetTeleporter() ([]byte, error) {
 	req.Header.Set("Sid", client.auth.sid)
 	req.Header.Set("User-Agent", userAgent)
 
-	response, err := client.httpClient.Do(req)
+	response, err := client.longHTTPClient.Do(req)
 	if err != nil {
 		return nil, client.wrapError(err, req)
 	}
@@ -201,7 +206,7 @@ func (client *client) PostTeleporter(payload []byte, teleporterRequest *model.Po
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("User-Agent", userAgent)
 
-	response, err := client.httpClient.Do(req)
+	response, err := client.longHTTPClient.Do(req)
 	if err != nil {
 		return client.wrapError(err, req)
 	}
@@ -289,7 +294,7 @@ func (client *client) PostRunGravity() error {
 	req.Header.Set("Sid", client.auth.sid)
 	req.Header.Set("User-Agent", userAgent)
 
-	response, err := client.httpClient.Do(req)
+	response, err := client.longHTTPClient.Do(req)
 	if err != nil {
 		return client.wrapError(err, req)
 	}

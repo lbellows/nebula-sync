@@ -108,8 +108,9 @@ The following environment variables can be specified:
 | `CLIENT_SKIP_TLS_VERIFICATION`     | false   | true            | Skips TLS certificate verification                 |
 | `CLIENT_RETRY_DELAY_SECONDS`       | 1       | 5               | Seconds to delay between connection attempts       |
 | `CLIENT_TIMEOUT_SECONDS`           | 20      | 60              | Http client timeout in seconds                     |
+| `CLIENT_LONG_TIMEOUT_SECONDS`      | 300     | 900             | Timeout for calls that block until Pi-hole finishes: running gravity and teleporter import/export |
 
-> **Note:** `CLIENT_TIMEOUT_SECONDS` is a whole-request timeout, and `POST /api/action/gravity` does not return until gravity has finished. If you set `RUN_GRAVITY=true`, raise this above however long gravity actually takes on your largest list, or the call times out and gets retried, re-running gravity each time.
+> **Note:** These are whole-request timeouts. `CLIENT_TIMEOUT_SECONDS` applies to ordinary API calls (auth, config read/write), so keeping it short means an unreachable replica fails fast. Gravity runs and teleporter import/export block until Pi-hole is done, so they use `CLIENT_LONG_TIMEOUT_SECONDS` instead. If gravity on your largest blocklist takes longer than 300s, raise it, or the call times out and the retry re-runs gravity.
 
 > **Note:** The following optional settings apply only if `FULL_SYNC=false`. They allow for granular control of synchronization if a full sync is not wanted.
 

@@ -13,6 +13,11 @@ type Client struct {
 	SkipTLSVerification bool  `default:"false" envconfig:"CLIENT_SKIP_TLS_VERIFICATION"`
 	RetryDelay          int64 `default:"1"     envconfig:"CLIENT_RETRY_DELAY_SECONDS"`
 	Timeout             int64 `default:"20"    envconfig:"CLIENT_TIMEOUT_SECONDS"`
+	// LongTimeout covers requests that block until Pi-hole finishes work:
+	// running gravity and importing/exporting a teleporter archive. Timeout is a
+	// whole-request budget, so reusing the 20s default for these guarantees a
+	// timeout on any non-trivial blocklist, and the retry then re-runs gravity.
+	LongTimeout int64 `default:"300" envconfig:"CLIENT_LONG_TIMEOUT_SECONDS"`
 }
 
 func (c *Config) loadClient() error {
@@ -27,16 +32,33 @@ func (c *Config) loadClient() error {
 	return nil
 }
 
-func (c *Client) NewHTTPClient() *http.Client {
+// HTTPClients are the clients used to talk to Pi-hole. They share a transport,
+// and therefore one connection pool, and differ only in their timeout.
+type HTTPClients struct {
+	// Standard serves ordinary API calls, where a short timeout is what makes an
+	// unreachable target fail fast.
+	Standard *http.Client
+	// Long serves calls that block until Pi-hole has finished working: running
+	// gravity, and teleporter import/export.
+	Long *http.Client
+}
+
+func (c *Client) NewHTTPClients() HTTPClients {
 	transport := cloneDefaultTransport()
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: c.SkipTLSVerification,
 	}
 
-	return &http.Client{
-		Timeout:   time.Duration(c.Timeout) * time.Second,
-		Transport: transport,
+	return HTTPClients{
+		Standard: &http.Client{
+			Timeout:   time.Duration(c.Timeout) * time.Second,
+			Transport: transport,
+		},
+		Long: &http.Client{
+			Timeout:   time.Duration(c.LongTimeout) * time.Second,
+			Transport: transport,
+		},
 	}
 }
 

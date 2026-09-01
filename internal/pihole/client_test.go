@@ -110,14 +110,14 @@ func (suite *clientTestSuite) TestClient_PostRunGravity() {
 
 func TestClient_String(t *testing.T) {
 	piHole := model.NewPiHole("http://asdfasdf.com:1234", apiPassword)
-	s := NewClient(piHole, httpClient).String()
+	s := NewClient(piHole, httpClient, httpClient).String()
 
 	assert.Equal(t, "http://asdfasdf.com:1234", s)
 }
 
 func TestClient_ApiPath(t *testing.T) {
 	piHole := model.NewPiHole("http://asdfasdf.com:1234", apiPassword)
-	c := NewClient(piHole, httpClient)
+	c := NewClient(piHole, httpClient, httpClient)
 
 	url := c.String()
 	path := c.APIPath("testing")
@@ -147,5 +147,5 @@ func createClient(container tc.Container) Client {
 
 	host := fmt.Sprintf("http://localhost:%s", apiPort.Port())
 
-	return NewClient(model.NewPiHole(host, apiPassword), httpClient)
+	return NewClient(model.NewPiHole(host, apiPassword), httpClient, httpClient)
 }

@@ -43,13 +43,13 @@ func Init() (*Service, error) {
 		return nil, err
 	}
 
-	httpClient := conf.Client.NewHTTPClient()
+	clients := conf.Client.NewHTTPClients()
 	retry.Init(conf.Client)
 
-	primary := pihole.NewClient(conf.Primary, httpClient)
+	primary := pihole.NewClient(conf.Primary, clients.Standard, clients.Long)
 	var replicas []pihole.Client
 	for _, replica := range conf.Replicas {
-		replicas = append(replicas, pihole.NewClient(replica, httpClient))
+		replicas = append(replicas, pihole.NewClient(replica, clients.Standard, clients.Long))
 	}
 
 	webhookClient := webhook.NewClient(conf.Sync.WebhookSettings)
