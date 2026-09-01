@@ -41,11 +41,13 @@ func (target *target) sync(syncFunc func() error, mode string) error {
 		target.deleteSessions()
 	}()
 
-	if err := target.authenticate(); err != nil {
-		return fmt.Errorf("authenticate: %w", err)
+	if authErr := target.authenticate(); authErr != nil {
+		err = fmt.Errorf("authenticate: %w", authErr)
+		return err
 	}
 
-	return syncFunc()
+	err = syncFunc()
+	return err
 }
 
 func (target *target) authenticate() error {

@@ -2,6 +2,7 @@ package retry
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -18,10 +19,12 @@ const (
 	AttemptsDeleteSession  = 3
 )
 
-var delay time.Duration
+// delay is set once at startup and read by every retry, including from the
+// cron goroutine, so it is stored atomically.
+var delay atomic.Int64
 
 func Init(clientConfig *config.Client) {
-	delay = time.Duration(clientConfig.RetryDelay) * time.Second
+	delay.Store(int64(time.Duration(clientConfig.RetryDelay) * time.Second))
 }
 
 func Fixed(retryFunc func() error, attempts uint) error {
@@ -30,7 +33,7 @@ func Fixed(retryFunc func() error, attempts uint) error {
 			return retryFunc()
 		},
 		retry.Attempts(attempts),
-		retry.Delay(delay),
+		retry.Delay(time.Duration(delay.Load())),
 		retry.LastErrorOnly(true),
 		retry.DelayType(retry.FixedDelay),
 		retry.OnRetry(func(n uint, err error) {
