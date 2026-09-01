@@ -90,11 +90,7 @@ func (client *client) PostAuth() error {
 	}
 	defer response.Body.Close()
 
-	if err := successfulHTTPStatus(response.StatusCode); err != nil {
-		return client.wrapError(err, req)
-	}
-
-	body, err := io.ReadAll(response.Body)
+	body, err := readHTTPBody(response)
 	if err != nil {
 		return client.wrapError(err, req)
 	}
@@ -115,13 +111,17 @@ func (client *client) PostAuth() error {
 
 func (client *client) DeleteSession() error {
 	client.logger.Debug().Msg("Delete session")
-	if err := client.auth.verify(); err != nil {
-		return client.wrapError(err, nil)
-	}
 
+	// Check for a session before validating it. A client that never
+	// authenticated has nothing to tear down, and returning an error here would
+	// burn the whole retry budget on a call that can never succeed.
 	if client.auth.sid == "" {
 		log.Debug().Msg("Trying to delete empty session")
 		return nil
+	}
+
+	if err := client.auth.verify(); err != nil {
+		return client.wrapError(err, nil)
 	}
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, client.APIPath("auth"), nil)
@@ -138,10 +138,7 @@ func (client *client) DeleteSession() error {
 	}
 	defer response.Body.Close()
 
-	if err := successfulHTTPStatus(response.StatusCode); err != nil {
-		return client.wrapError(err, req)
-	}
-
+	_, err = readHTTPBody(response)
 	return client.wrapError(err, req)
 }
 
@@ -163,11 +160,7 @@ func (client *client) GetTeleporter() ([]byte, error) {
 	}
 	defer response.Body.Close()
 
-	if err := successfulHTTPStatus(response.StatusCode); err != nil {
-		return nil, client.wrapError(err, req)
-	}
-
-	body, err := io.ReadAll(response.Body)
+	body, err := readHTTPBody(response)
 	return body, client.wrapError(err, req)
 }
 
@@ -214,11 +207,8 @@ func (client *client) PostTeleporter(payload []byte, teleporterRequest *model.Po
 	}
 	defer response.Body.Close()
 
-	if err := successfulHTTPStatus(response.StatusCode); err != nil {
-		return client.wrapError(err, req)
-	}
-
-	return nil
+	_, err = readHTTPBody(response)
+	return client.wrapError(err, req)
 }
 
 func (client *client) GetConfig() (*model.ConfigResponse, error) {
@@ -241,11 +231,7 @@ func (client *client) GetConfig() (*model.ConfigResponse, error) {
 	}
 	defer response.Body.Close()
 
-	if err := successfulHTTPStatus(response.StatusCode); err != nil {
-		return &configResponse, client.wrapError(err, req)
-	}
-
-	body, err := io.ReadAll(response.Body)
+	body, err := readHTTPBody(response)
 	if err != nil {
 		return &configResponse, client.wrapError(err, req)
 	}
@@ -286,10 +272,7 @@ func (client *client) PatchConfig(patchRequest *model.PatchConfigRequest) error 
 	}
 	defer response.Body.Close()
 
-	if err := successfulHTTPStatus(response.StatusCode); err != nil {
-		return client.wrapError(err, req)
-	}
-
+	_, err = readHTTPBody(response)
 	return client.wrapError(err, req)
 }
 
@@ -312,11 +295,8 @@ func (client *client) PostRunGravity() error {
 	}
 	defer response.Body.Close()
 
-	if err := successfulHTTPStatus(response.StatusCode); err != nil {
-		return client.wrapError(err, req)
-	}
-
-	return err
+	_, err = readHTTPBody(response)
+	return client.wrapError(err, req)
 }
 
 func (client *client) String() string {
@@ -337,10 +317,27 @@ func (client *client) wrapError(err error, req *http.Request) error {
 	return nil
 }
 
-func successfulHTTPStatus(statusCode int) error {
+func readHTTPBody(response *http.Response) ([]byte, error) {
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err := successfulHTTPStatus(response.StatusCode, body); err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func successfulHTTPStatus(statusCode int, body []byte) error {
 	if statusCode >= 200 && statusCode <= 299 {
 		return nil
 	}
 
-	return fmt.Errorf("unexpected status code: %d", statusCode)
+	const maxBody = 1024
+	msg := string(body)
+	if len(msg) > maxBody {
+		msg = msg[:maxBody] + "..."
+	}
+
+	return fmt.Errorf("unexpected status code: %d, response body: %s", statusCode, msg)
 }

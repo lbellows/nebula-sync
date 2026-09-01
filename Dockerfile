@@ -2,8 +2,9 @@ FROM golang:1.26-alpine AS golang
 
 WORKDIR /app
 
-RUN apk add -U tzdata upx && \
-    apk --update add ca-certificates
+# Do not pack the binary with UPX. Packed Go binaries SIGSEGV on some NAS
+# kernels (notably Synology DSM) which surfaces as Docker exit code 139.
+RUN apk add --no-cache tzdata ca-certificates
 
 COPY . .
 
@@ -12,13 +13,12 @@ RUN go mod verify
 
 ARG VERSION=dev
 
-ENV GO111MODULE=on
 ENV CGO_ENABLED=0
 ENV GOOS=linux
-ENV GOFLAGS="-a -trimpath -ldflags=-w -ldflags=-s -ldflags=-X=github.com/lovelaze/nebula-sync/version.Version=${VERSION} -o=nebula-sync"
 
-RUN go build . && \
-    upx -q nebula-sync
+RUN go build -trimpath \
+    -ldflags="-s -w -X github.com/lovelaze/nebula-sync/version.Version=${VERSION}" \
+    -o nebula-sync .
 
 FROM scratch
 

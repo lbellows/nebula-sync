@@ -30,12 +30,9 @@ builds:
       - goos: windows
         goarch: arm
 
+# UPX-packed Go binaries SIGSEGV on some NAS kernels (Docker exit 139).
 upx:
-  - enabled: true
-    goos: [linux]
-    compress: best
-    lzma: true
-    brute: true
+  - enabled: false
 
 archives:
   - formats: ['tar.gz']

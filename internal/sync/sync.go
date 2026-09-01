@@ -41,11 +41,13 @@ func (target *target) sync(syncFunc func() error, mode string) error {
 		target.deleteSessions()
 	}()
 
-	if err := target.authenticate(); err != nil {
-		return fmt.Errorf("authenticate: %w", err)
+	if authErr := target.authenticate(); authErr != nil {
+		err = fmt.Errorf("authenticate: %w", authErr)
+		return err
 	}
 
-	return syncFunc()
+	err = syncFunc()
+	return err
 }
 
 func (target *target) authenticate() error {
@@ -67,7 +69,9 @@ func (target *target) authenticate() error {
 
 func (target *target) deleteSessions() {
 	log.Info().Msg("Invalidating sessions...")
-	if err := target.Primary.DeleteSession(); err != nil {
+	if err := retry.Fixed(func() error {
+		return target.Primary.DeleteSession()
+	}, retry.AttemptsDeleteSession); err != nil {
 		log.Warn().Msgf("Failed to invalidate session for target: %s", target.Primary.String())
 	}
 

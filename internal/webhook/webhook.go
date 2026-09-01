@@ -27,15 +27,30 @@ type Client struct {
 
 func NewClient(c *config.WebhookSettings) *Client {
 	return &Client{
-		success: c.Success,
-		failure: c.Failure,
-		httpClient: &http.Client{
-			Timeout: timeout,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: c.Client.SkipTLSVerification},
-			},
-		},
+		success:    c.Success,
+		failure:    c.Failure,
+		httpClient: newHTTPClient(c.Client.SkipTLSVerification),
 	}
+}
+
+func newHTTPClient(skipTLSVerification bool) *http.Client {
+	transport := cloneDefaultTransport()
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: skipTLSVerification,
+	}
+
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: transport,
+	}
+}
+
+func cloneDefaultTransport() *http.Transport {
+	if base, ok := http.DefaultTransport.(*http.Transport); ok {
+		return base.Clone()
+	}
+	return &http.Transport{Proxy: http.ProxyFromEnvironment}
 }
 
 func (c *Client) OnSuccess() {

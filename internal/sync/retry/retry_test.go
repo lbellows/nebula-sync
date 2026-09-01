@@ -15,8 +15,6 @@ import (
 // delay and  additionally make sure they are a fixed delay
 // and not the default backoff value.
 func TestWithRetry_DelayBetweenRetries(t *testing.T) {
-	t.Parallel()
-
 	Init(&config.Client{
 		RetryDelay: 1,
 	})
@@ -40,8 +38,6 @@ func TestWithRetry_DelayBetweenRetries(t *testing.T) {
 
 // Test that we do not retry on immediate success.
 func TestWithRetry_NoRetriesOnImmediateSuccess(t *testing.T) {
-	t.Parallel()
-
 	Init(&config.Client{
 		RetryDelay: 2,
 	})
@@ -58,8 +54,6 @@ func TestWithRetry_NoRetriesOnImmediateSuccess(t *testing.T) {
 
 // Test that we properly succeed after a few but not max retires.
 func TestWithRetry_SuccessAfterRetries(t *testing.T) {
-	t.Parallel()
-
 	Init(&config.Client{
 		RetryDelay: 1,
 	})
@@ -79,8 +73,6 @@ func TestWithRetry_SuccessAfterRetries(t *testing.T) {
 
 // Test to make sure we properly fail after max amount of retries.
 func TestWithRetry_MaxAttemptsFailure(t *testing.T) {
-	t.Parallel()
-
 	Init(&config.Client{
 		RetryDelay: 1,
 	})
