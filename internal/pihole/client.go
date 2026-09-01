@@ -294,6 +294,12 @@ func (client *client) PostRunGravity() error {
 	req.Header.Set("Sid", client.auth.sid)
 	req.Header.Set("User-Agent", userAgent)
 
+	// Pi-hole writes its JSON summary after terminating the chunked gravity
+	// stream. Once the body is drained the connection goes back to the idle
+	// pool, and those trailing bytes then surface as net/http logging an
+	// "Unsolicited response received on idle HTTP channel". Don't reuse it.
+	req.Close = true
+
 	response, err := client.longHTTPClient.Do(req)
 	if err != nil {
 		return client.wrapError(err, req)
