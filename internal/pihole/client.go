@@ -115,13 +115,17 @@ func (client *client) PostAuth() error {
 
 func (client *client) DeleteSession() error {
 	client.logger.Debug().Msg("Delete session")
-	if err := client.auth.verify(); err != nil {
-		return client.wrapError(err, nil)
-	}
 
+	// Check for a session before validating it. A client that never
+	// authenticated has nothing to tear down, and returning an error here would
+	// burn the whole retry budget on a call that can never succeed.
 	if client.auth.sid == "" {
 		log.Debug().Msg("Trying to delete empty session")
 		return nil
+	}
+
+	if err := client.auth.verify(); err != nil {
+		return client.wrapError(err, nil)
 	}
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, client.APIPath("auth"), nil)
