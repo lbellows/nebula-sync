@@ -16,7 +16,11 @@ const (
 	AttemptsPatchConfig    = 5
 	AttemptsPostRunGravity = 5
 	AttemptsPostAuth       = 3
-	AttemptsDeleteSession  = 3
+	// FTL is often still restarting after gravity, so session teardown needs a
+	// few more attempts than auth. Keep it bounded: the delay is
+	// CLIENT_RETRY_DELAY_SECONDS and a failure here is only logged as a warning,
+	// so a large budget just stalls the run.
+	AttemptsDeleteSession = 5
 )
 
 // delay is set once at startup and read by every retry, including from the
