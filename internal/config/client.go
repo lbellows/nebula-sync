@@ -52,14 +52,23 @@ func (c *Client) NewHTTPClients() HTTPClients {
 
 	return HTTPClients{
 		Standard: &http.Client{
-			Timeout:   time.Duration(c.Timeout) * time.Second,
-			Transport: transport,
+			Timeout:       time.Duration(c.Timeout) * time.Second,
+			Transport:     transport,
+			CheckRedirect: noRedirects,
 		},
 		Long: &http.Client{
-			Timeout:   time.Duration(c.LongTimeout) * time.Second,
-			Transport: transport,
+			Timeout:       time.Duration(c.LongTimeout) * time.Second,
+			Transport:     transport,
+			CheckRedirect: noRedirects,
 		},
 	}
+}
+
+// noRedirects stops the client following a 3xx. Go forwards the Sid header to
+// the redirect target and replays POST bodies on 307/308, and Pi-hole's API
+// never redirects, so the 3xx is returned and rejected as a non-2xx status.
+func noRedirects(*http.Request, []*http.Request) error {
+	return http.ErrUseLastResponse
 }
 
 func cloneDefaultTransport() *http.Transport {

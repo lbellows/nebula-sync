@@ -1,6 +1,8 @@
 package pihole
 
 import (
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -28,4 +30,18 @@ func TestSuccessfulHTTPStatusTruncatesBody(t *testing.T) {
 	assert.Contains(t, err.Error(), "unexpected status code: 500")
 	assert.True(t, strings.HasSuffix(err.Error(), "..."))
 	assert.LessOrEqual(t, len(err.Error()), len("unexpected status code: 500, response body: ")+1024+3)
+}
+
+func TestReadHTTPBodyLimit(t *testing.T) {
+	t.Parallel()
+
+	response := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("abcd"))}
+	body, err := readHTTPBodyLimit(response, 4)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("abcd"), body)
+
+	response = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("abcde"))}
+	_, err = readHTTPBodyLimit(response, 4)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds 4 bytes")
 }

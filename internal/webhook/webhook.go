@@ -16,7 +16,7 @@ import (
 
 const (
 	timeout                        = 10 * time.Second
-	invalidHTTPStatusCodeThreshold = 400
+	invalidHTTPStatusCodeThreshold = 300
 )
 
 type Client struct {
@@ -43,6 +43,9 @@ func newHTTPClient(skipTLSVerification bool) *http.Client {
 	return &http.Client{
 		Timeout:   timeout,
 		Transport: transport,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 }
 
