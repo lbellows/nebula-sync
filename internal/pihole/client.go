@@ -165,7 +165,7 @@ func (client *client) GetTeleporter() ([]byte, error) {
 	}
 	defer response.Body.Close()
 
-	body, err := readHTTPBody(response)
+	body, err := readHTTPBodyLimit(response, maxTeleporterBody)
 	return body, client.wrapError(err, req)
 }
 
@@ -328,13 +328,27 @@ func (client *client) wrapError(err error, req *http.Request) error {
 	return nil
 }
 
+const (
+	// maxResponseBody bounds every JSON response, including a full config.
+	maxResponseBody = 16 << 20
+	// maxTeleporterBody matches FTL's own MAX_TELEPORTER_ZIP_SIZE.
+	maxTeleporterBody = 128 << 20
+)
+
 func readHTTPBody(response *http.Response) ([]byte, error) {
-	body, err := io.ReadAll(response.Body)
+	return readHTTPBodyLimit(response, maxResponseBody)
+}
+
+func readHTTPBodyLimit(response *http.Response, limit int64) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
 	if err != nil {
 		return nil, err
 	}
 	if err := successfulHTTPStatus(response.StatusCode, body); err != nil {
 		return nil, err
+	}
+	if int64(len(body)) > limit {
+		return nil, fmt.Errorf("response body exceeds %d bytes", limit)
 	}
 	return body, nil
 }

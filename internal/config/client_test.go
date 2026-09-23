@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/tls"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -48,4 +49,30 @@ func TestConfig_LoadClient_LongTimeoutDefault(t *testing.T) {
 
 	assert.Equal(t, int64(20), conf.Client.Timeout)
 	assert.Equal(t, int64(300), conf.Client.LongTimeout)
+}
+
+func TestClient_NewHTTPClients_DoesNotFollowRedirects(t *testing.T) {
+	var leakedSid string
+	target := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		leakedSid = r.Header.Get("Sid")
+	}))
+	defer target.Close()
+	pihole := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
+	}))
+	defer pihole.Close()
+
+	clients := (&Client{Timeout: 5, LongTimeout: 5}).NewHTTPClients()
+	for _, httpClient := range []*http.Client{clients.Standard, clients.Long} {
+		req, err := http.NewRequest(http.MethodGet, pihole.URL, nil)
+		require.NoError(t, err)
+		req.Header.Set("Sid", "secret")
+
+		resp, err := httpClient.Do(req)
+		require.NoError(t, err)
+		resp.Body.Close()
+
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+		assert.Empty(t, leakedSid)
+	}
 }
