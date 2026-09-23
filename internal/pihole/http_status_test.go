@@ -35,12 +35,12 @@ func TestSuccessfulHTTPStatusTruncatesBody(t *testing.T) {
 func TestReadHTTPBodyLimit(t *testing.T) {
 	t.Parallel()
 
-	response := &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("abcd"))}
+	response := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("abcd"))}
 	body, err := readHTTPBodyLimit(response, 4)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("abcd"), body)
 
-	response = &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("abcde"))}
+	response = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("abcde"))}
 	_, err = readHTTPBodyLimit(response, 4)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "exceeds 4 bytes")
